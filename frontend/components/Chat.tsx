@@ -1,92 +1,122 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
-import { Send, Loader2, Bot, User } from "lucide-react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Send, Bot, Mail, Calendar, FileText, Sparkles } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { api, type Message, type PendingAction } from "@/lib/api";
 import PendingBanner from "./PendingBanner";
 
+// ── Typing dots ────────────────────────────────────────────────────────────────
+function TypingDots() {
+  return (
+    <div className="flex gap-1 items-center" style={{ padding: "4px 2px" }}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          style={{
+            width: 7, height: 7,
+            borderRadius: "50%",
+            background: "var(--accent2)",
+            display: "inline-block",
+            animation: `dotBounce 1.2s ease-in-out ${i * 0.2}s infinite`,
+          }}
+        />
+      ))}
+      <style>{`
+        @keyframes dotBounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40% { transform: translateY(-5px); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Message bubble ─────────────────────────────────────────────────────────────
 function Bubble({ msg }: { msg: Message }) {
   const isUser = msg.role === "user";
   return (
-    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
+    <div className={`flex gap-2.5 group ${isUser ? "flex-row-reverse" : ""}`}>
+      {/* avatar */}
       <div
         style={{
-          background: isUser ? "var(--accent)" : "var(--surface2)",
-          borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+          background: isUser ? "var(--accent)" : "#1e1e2e",
+          border: isUser ? "none" : "1px solid var(--border)",
+          borderRadius: "50%",
           flexShrink: 0,
-          width: 28,
-          height: 28,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          width: 30, height: 30,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          marginTop: 2,
         }}
       >
-        {isUser ? <User size={14} color="#fff" /> : <Bot size={14} color="var(--accent2)" />}
+        {isUser
+          ? <span style={{ color: "#fff", fontSize: 12, fontWeight: 700 }}>Tu</span>
+          : <Bot size={14} color="var(--accent2)" />}
       </div>
-      <div
-        style={{
-          background: isUser ? "var(--accent)" : "var(--surface2)",
-          borderRadius: isUser ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
-          maxWidth: "75%",
-          padding: "10px 14px",
-          wordBreak: "break-word",
-        }}
-        className="md-bubble"
-      >
-        {isUser ? (
-          <span style={{ color: "#fff", fontSize: 13, lineHeight: 1.6 }}>{msg.content}</span>
-        ) : (
-          <ReactMarkdown
-            components={{
-              h1: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 15, marginBottom: 6, marginTop: 8 }}>{children}</p>,
-              h2: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 14, marginBottom: 4, marginTop: 8 }}>{children}</p>,
-              h3: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 600, fontSize: 13, marginBottom: 4, marginTop: 8 }}>{children}</p>,
-              p: ({ children }) => <p style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.65, marginBottom: 6 }}>{children}</p>,
-              strong: ({ children }) => <strong style={{ color: "var(--accent2)", fontWeight: 600 }}>{children}</strong>,
-              em: ({ children }) => <em style={{ color: "var(--muted)" }}>{children}</em>,
-              ul: ({ children }) => <ul style={{ paddingLeft: 18, marginBottom: 6 }}>{children}</ul>,
-              ol: ({ children }) => <ol style={{ paddingLeft: 18, marginBottom: 6 }}>{children}</ol>,
-              li: ({ children }) => <li style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.65, marginBottom: 2 }}>{children}</li>,
-              hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "10px 0" }} />,
-              code: ({ children }) => <code style={{ background: "rgba(0,0,0,0.3)", borderRadius: 4, padding: "1px 5px", fontSize: 12, color: "#34d399" }}>{children}</code>,
-              blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 10, margin: "6px 0", opacity: 0.8 }}>{children}</blockquote>,
-            }}
-          >
-            {msg.content}
-          </ReactMarkdown>
-        )}
+
+      {/* bubble */}
+      <div style={{ maxWidth: "78%", display: "flex", flexDirection: "column", gap: 2 }}>
+        <div
+          style={{
+            background: isUser ? "var(--accent)" : "var(--surface2)",
+            border: isUser ? "none" : "1px solid var(--border)",
+            borderRadius: isUser ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
+            padding: isUser ? "9px 14px" : "12px 16px",
+            wordBreak: "break-word",
+          }}
+        >
+          {isUser ? (
+            <p style={{ color: "#fff", fontSize: 13.5, lineHeight: 1.6, margin: 0 }}>
+              {msg.content}
+            </p>
+          ) : (
+            <ReactMarkdown
+              components={{
+                h1: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 15, margin: "8px 0 4px" }}>{children}</p>,
+                h2: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 14, margin: "8px 0 4px" }}>{children}</p>,
+                h3: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 600, fontSize: 13.5, margin: "6px 0 3px" }}>{children}</p>,
+                p: ({ children }) => <p style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.7, margin: "0 0 6px" }}>{children}</p>,
+                strong: ({ children }) => <strong style={{ color: "var(--accent2)", fontWeight: 600 }}>{children}</strong>,
+                em: ({ children }) => <em style={{ color: "var(--muted)" }}>{children}</em>,
+                ul: ({ children }) => <ul style={{ paddingLeft: 16, margin: "4px 0 6px" }}>{children}</ul>,
+                ol: ({ children }) => <ol style={{ paddingLeft: 16, margin: "4px 0 6px" }}>{children}</ol>,
+                li: ({ children }) => <li style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.65, marginBottom: 3 }}>{children}</li>,
+                hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "10px 0" }} />,
+                code: ({ children }) => <code style={{ background: "rgba(0,0,0,0.35)", border: "1px solid var(--border)", borderRadius: 4, padding: "1px 6px", fontSize: 12, color: "#34d399", fontFamily: "monospace" }}>{children}</code>,
+                blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 10, margin: "6px 0", opacity: 0.85 }}>{children}</blockquote>,
+              }}
+            >
+              {msg.content}
+            </ReactMarkdown>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
+// ── Suggestion chips ────────────────────────────────────────────────────────────
 const SUGGESTIONS = [
-  "Controlla le email non lette",
-  "Cosa ho in calendario oggi?",
-  "Riassumi le ultime 5 email",
-  "Crea un evento per domani alle 10",
+  { icon: Mail,     text: "Controlla le email non lette" },
+  { icon: Calendar, text: "Cosa ho in calendario oggi?" },
+  { icon: FileText, text: "Riassumi le ultime 5 email" },
+  { icon: Sparkles, text: "Cosa sai di me?" },
 ];
 
+// ── Main chat ──────────────────────────────────────────────────────────────────
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<PendingAction[]>([]);
+  const [focused, setFocused] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   async function loadHistory() {
-    try {
-      const h = await api.getHistory();
-      setMessages(h.messages);
-    } catch {}
+    try { setMessages((await api.getHistory()).messages); } catch {}
   }
-
   async function loadPending() {
-    try {
-      const p = await api.getPending();
-      setPending(p.pending);
-    } catch {}
+    try { setPending((await api.getPending()).pending); } catch {}
   }
 
   useEffect(() => {
@@ -100,21 +130,24 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
+  // Auto-resize textarea
+  const autoResize = useCallback((el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+  }, []);
+
   async function send(text: string) {
     if (!text.trim() || loading) return;
-    const userMsg: Message = { role: "user", content: text.trim() };
-    setMessages((m) => [...m, userMsg]);
+    setMessages((m) => [...m, { role: "user", content: text.trim() }]);
     setInput("");
+    if (inputRef.current) { inputRef.current.style.height = "auto"; }
     setLoading(true);
     try {
       const res = await api.sendTask(text.trim());
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
       await loadPending();
-    } catch (e) {
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", content: `⚠️ Errore: impossibile contattare il backend.` },
-      ]);
+    } catch {
+      setMessages((m) => [...m, { role: "assistant", content: "⚠️ Impossibile contattare il backend." }]);
     } finally {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 50);
@@ -128,144 +161,139 @@ export default function Chat() {
     }
   }
 
+  const canSend = input.trim().length > 0 && !loading;
+
   return (
     <div className="flex flex-col flex-1 h-full overflow-hidden">
-      {/* pending approvals banner */}
       <PendingBanner actions={pending} onResolved={loadPending} />
 
       {/* messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+      <div className="flex-1 overflow-y-auto px-5 py-5" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {messages.length === 0 && !loading && (
-          <div className="flex flex-col items-center justify-center h-full gap-6">
-            <div style={{ color: "var(--accent2)" }}>
-              <Bot size={40} strokeWidth={1.5} />
+          <div className="flex flex-col items-center justify-center h-full gap-5">
+            <div
+              style={{
+                background: "linear-gradient(135deg, #6c63ff22, #a78bfa22)",
+                border: "1px solid #6c63ff44",
+                borderRadius: "50%", padding: 20,
+              }}
+            >
+              <Bot size={36} color="var(--accent2)" strokeWidth={1.5} />
             </div>
             <div className="text-center">
-              <h2 className="text-lg font-semibold" style={{ color: "var(--text)" }}>
-                Ciao, sono Jarvis
-              </h2>
-              <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-                Cosa posso fare per te?
-              </p>
+              <h2 style={{ color: "var(--text)", fontSize: 18, fontWeight: 700 }}>Ciao, sono Jarvis</h2>
+              <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>Il tuo assistente personale. Cosa faccio per te?</p>
             </div>
-            <div className="grid grid-cols-2 gap-2 max-w-sm w-full">
-              {SUGGESTIONS.map((s) => (
+            <div className="grid grid-cols-2 gap-2" style={{ maxWidth: 340, width: "100%" }}>
+              {SUGGESTIONS.map(({ icon: Icon, text }) => (
                 <button
-                  key={s}
-                  onClick={() => send(s)}
+                  key={text}
+                  onClick={() => send(text)}
                   style={{
                     background: "var(--surface2)",
                     border: "1px solid var(--border)",
-                    borderRadius: "10px",
-                    color: "var(--text)",
+                    borderRadius: 12, padding: "10px 12px",
+                    color: "var(--text)", textAlign: "left",
+                    transition: "border-color 0.15s, background 0.15s",
+                    display: "flex", flexDirection: "column", gap: 6,
                   }}
-                  className="text-xs px-3 py-2.5 text-left hover:opacity-70 transition-opacity leading-snug"
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "var(--accent)";
+                    (e.currentTarget as HTMLElement).style.background = "var(--surface)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.borderColor = "var(--border)";
+                    (e.currentTarget as HTMLElement).style.background = "var(--surface2)";
+                  }}
                 >
-                  {s}
+                  <Icon size={14} color="var(--accent2)" />
+                  <span style={{ fontSize: 12, lineHeight: 1.4 }}>{text}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <Bubble key={i} msg={m} />
-        ))}
+        {messages.map((m, i) => <Bubble key={i} msg={m} />)}
 
         {loading && (
-          <div className="flex gap-3">
-            <div
-              style={{
-                background: "var(--surface2)",
-                borderRadius: "18px 18px 18px 4px",
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
+          <div className="flex gap-2.5">
+            <div style={{ background: "#1e1e2e", border: "1px solid var(--border)", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
               <Bot size={14} color="var(--accent2)" />
             </div>
-            <div
-              style={{
-                background: "var(--surface2)",
-                borderRadius: "4px 18px 18px 18px",
-                padding: "10px 16px",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Loader2 size={13} className="animate-spin" style={{ color: "var(--accent2)" }} />
-              <span style={{ color: "var(--muted)", fontSize: "13px" }}>Pensando...</span>
+            <div style={{ background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: "4px 18px 18px 18px", padding: "10px 16px" }}>
+              <TypingDots />
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      {/* input */}
-      <div
-        style={{ borderTop: "1px solid var(--border)", background: "var(--surface)" }}
-        className="px-4 py-3"
-      >
+      {/* input area */}
+      <div style={{ borderTop: "1px solid var(--border)", background: "var(--surface)", padding: "12px 16px 14px" }}>
         <div
           style={{
             background: "var(--surface2)",
-            border: "1px solid var(--border)",
-            borderRadius: "14px",
+            border: `1px solid ${focused ? "var(--accent)" : "var(--border)"}`,
+            borderRadius: 16,
             display: "flex",
             alignItems: "flex-end",
             gap: 8,
-            padding: "8px 8px 8px 14px",
+            padding: "10px 10px 10px 16px",
             transition: "border-color 0.15s",
           }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--accent)")}
-          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
         >
           <textarea
             ref={inputRef}
-            rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              autoResize(e.target);
+            }}
             onKeyDown={onKeyDown}
-            placeholder="Scrivi un messaggio… (Shift+Enter per andare a capo)"
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            placeholder="Scrivi un messaggio…"
+            rows={1}
             style={{
               background: "transparent",
               border: "none",
               outline: "none",
               color: "var(--text)",
-              fontSize: "13px",
-              lineHeight: "1.5",
+              fontSize: "13.5px",
+              lineHeight: "1.6",
               resize: "none",
               flex: 1,
-              maxHeight: "120px",
+              minHeight: 24,
+              maxHeight: 200,
               overflowY: "auto",
+              fontFamily: "inherit",
+              padding: 0,
             }}
             autoFocus
           />
-          <button
-            onClick={() => send(input)}
-            disabled={!input.trim() || loading}
-            style={{
-              background: input.trim() && !loading ? "var(--accent)" : "var(--border)",
-              borderRadius: "9px",
-              width: 32,
-              height: 32,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "background 0.15s",
-              flexShrink: 0,
-            }}
-          >
-            <Send size={14} color="#fff" />
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+            <button
+              onClick={() => send(input)}
+              disabled={!canSend}
+              style={{
+                background: canSend ? "var(--accent)" : "var(--border)",
+                borderRadius: 10,
+                width: 34, height: 34,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                transition: "background 0.15s, transform 0.1s",
+                cursor: canSend ? "pointer" : "default",
+                border: "none",
+              }}
+              onMouseDown={(e) => canSend && ((e.currentTarget as HTMLElement).style.transform = "scale(0.92)")}
+              onMouseUp={(e) => ((e.currentTarget as HTMLElement).style.transform = "scale(1)")}
+            >
+              <Send size={14} color="#fff" />
+            </button>
+          </div>
         </div>
-        <p style={{ color: "var(--muted)", fontSize: "10px" }} className="text-center mt-1.5">
-          Le azioni di scrittura richiedono approvazione su Telegram
+        <p style={{ color: "var(--muted)", fontSize: 11, textAlign: "center", marginTop: 6 }}>
+          Enter per inviare · Shift+Enter per andare a capo
         </p>
       </div>
     </div>

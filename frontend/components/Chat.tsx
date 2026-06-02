@@ -1,9 +1,25 @@
 "use client";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import { Send, Bot, Mail, Calendar, FileText, Sparkles } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { Components } from "react-markdown";
 import { api, type Message, type PendingAction } from "@/lib/api";
 import PendingBanner from "./PendingBanner";
+
+// Defined once outside component — no re-creation on every keystroke
+const MD: Components = {
+  h1: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 15, margin: "8px 0 4px" }}>{children}</p>,
+  h2: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 14, margin: "8px 0 4px" }}>{children}</p>,
+  h3: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 600, fontSize: 13.5, margin: "6px 0 3px" }}>{children}</p>,
+  p: ({ children }) => <p style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.7, margin: "0 0 6px" }}>{children}</p>,
+  strong: ({ children }) => <strong style={{ color: "var(--accent2)", fontWeight: 600 }}>{children}</strong>,
+  em: ({ children }) => <em style={{ color: "var(--muted)" }}>{children}</em>,
+  ul: ({ children }) => <ul style={{ paddingLeft: 16, margin: "4px 0 6px" }}>{children}</ul>,
+  ol: ({ children }) => <ol style={{ paddingLeft: 16, margin: "4px 0 6px" }}>{children}</ol>,
+  li: ({ children }) => <li style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.65, marginBottom: 3 }}>{children}</li>,
+  hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "10px 0" }} />,
+  code: ({ children }) => <code style={{ background: "rgba(0,0,0,0.35)", border: "1px solid var(--border)", borderRadius: 4, padding: "1px 6px", fontSize: 12, color: "#34d399", fontFamily: "monospace" }}>{children}</code>,
+  blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 10, margin: "6px 0", opacity: 0.85 }}>{children}</blockquote>,
+};
 
 // ── Typing dots ────────────────────────────────────────────────────────────────
 function TypingDots() {
@@ -31,8 +47,8 @@ function TypingDots() {
   );
 }
 
-// ── Message bubble ─────────────────────────────────────────────────────────────
-function Bubble({ msg }: { msg: Message }) {
+// ── Message bubble — memoized so it never re-renders on input change ──────────
+const Bubble = memo(function Bubble({ msg }: { msg: Message }) {
   const isUser = msg.role === "user";
   return (
     <div className={`flex gap-2.5 group ${isUser ? "flex-row-reverse" : ""}`}>
@@ -69,30 +85,13 @@ function Bubble({ msg }: { msg: Message }) {
               {msg.content}
             </p>
           ) : (
-            <ReactMarkdown
-              components={{
-                h1: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 15, margin: "8px 0 4px" }}>{children}</p>,
-                h2: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 14, margin: "8px 0 4px" }}>{children}</p>,
-                h3: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 600, fontSize: 13.5, margin: "6px 0 3px" }}>{children}</p>,
-                p: ({ children }) => <p style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.7, margin: "0 0 6px" }}>{children}</p>,
-                strong: ({ children }) => <strong style={{ color: "var(--accent2)", fontWeight: 600 }}>{children}</strong>,
-                em: ({ children }) => <em style={{ color: "var(--muted)" }}>{children}</em>,
-                ul: ({ children }) => <ul style={{ paddingLeft: 16, margin: "4px 0 6px" }}>{children}</ul>,
-                ol: ({ children }) => <ol style={{ paddingLeft: 16, margin: "4px 0 6px" }}>{children}</ol>,
-                li: ({ children }) => <li style={{ color: "var(--text)", fontSize: 13.5, lineHeight: 1.65, marginBottom: 3 }}>{children}</li>,
-                hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "10px 0" }} />,
-                code: ({ children }) => <code style={{ background: "rgba(0,0,0,0.35)", border: "1px solid var(--border)", borderRadius: 4, padding: "1px 6px", fontSize: 12, color: "#34d399", fontFamily: "monospace" }}>{children}</code>,
-                blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 10, margin: "6px 0", opacity: 0.85 }}>{children}</blockquote>,
-              }}
-            >
-              {msg.content}
-            </ReactMarkdown>
+            <ReactMarkdown components={MD}>{msg.content}</ReactMarkdown>
           )}
         </div>
       </div>
     </div>
   );
-}
+});
 
 // ── Suggestion chips ────────────────────────────────────────────────────────────
 const SUGGESTIONS = [

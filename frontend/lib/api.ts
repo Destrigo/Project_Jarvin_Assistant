@@ -51,6 +51,9 @@ export const api = {
   getMemoryGraph: () =>
     get<GraphData>("/memory/graph"),
 
+  getNote: (title: string) =>
+    get<{ title: string; content: string; path: string; folder: string }>(`/memory/note?title=${encodeURIComponent(title)}`),
+
   getStats: () =>
     get<Stats>("/stats"),
 };

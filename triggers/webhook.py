@@ -75,6 +75,19 @@ def resolve(action_id: str, status: str = "approved"):
     return {"status": "skipped"}
 
 
+@app.get("/memory/note")
+def get_note(title: str):
+    from pathlib import Path
+    vault = Path(os.getenv("OBSIDIAN_VAULT", str(Path.home() / "Documents" / "Jarvis"))).expanduser()
+    matches = list(vault.rglob(f"{title}.md"))
+    if not matches:
+        raise HTTPException(status_code=404, detail="Note not found")
+    content = matches[0].read_text(encoding="utf-8", errors="ignore")
+    rel = str(matches[0].relative_to(vault))
+    folder = rel.split("/")[0] if "/" in rel else ""
+    return {"title": title, "content": content, "path": rel, "folder": folder}
+
+
 @app.get("/memory/graph")
 def memory_graph():
     """Return nodes and edges for the Obsidian vault graph visualization."""

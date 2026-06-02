@@ -1,11 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, MessageSquare, GitBranch, BarChart2 } from "lucide-react";
+import { Bot, BarChart2 } from "lucide-react";
 
 const LINKS = [
-  { href: "/", label: "Chat", icon: MessageSquare },
-  { href: "/graph", label: "Grafo", icon: GitBranch },
   { href: "/stats", label: "Stats", icon: BarChart2 },
 ];
 
@@ -16,12 +14,12 @@ export default function Nav() {
       style={{ background: "var(--surface)", borderBottom: "1px solid var(--border)", height: 49 }}
       className="flex items-center gap-4 px-4 shrink-0"
     >
-      <div className="flex items-center gap-2 mr-4">
+      <Link href="/" className="flex items-center gap-2 mr-4" style={{ textDecoration: "none" }}>
         <div style={{ background: "var(--accent)", borderRadius: 8, padding: 5 }}>
           <Bot size={16} color="#fff" />
         </div>
         <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>Jarvis</span>
-      </div>
+      </Link>
 
       {LINKS.map(({ href, label, icon: Icon }) => {
         const active = path === href;
@@ -40,6 +38,7 @@ export default function Nav() {
               gap: 6,
               height: "100%",
               transition: "color 0.15s",
+              textDecoration: "none",
             }}
           >
             <Icon size={14} />

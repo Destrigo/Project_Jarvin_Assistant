@@ -1,5 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import { X, FileText } from "lucide-react";
 import { api, type GraphData } from "@/lib/api";
 
 const FOLDER_COLORS: Record<string, string> = {
@@ -7,15 +9,15 @@ const FOLDER_COLORS: Record<string, string> = {
   Conversazioni: "#34d399",
   "": "#6c63ff",
 };
+function folderColor(f: string) { return FOLDER_COLORS[f] ?? "#60a5fa"; }
 
-function folderColor(folder: string): string {
-  return FOLDER_COLORS[folder] ?? "#60a5fa";
-}
+type NotePanel = { title: string; content: string; folder: string } | null;
 
 export default function Graph3D() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<GraphData | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const [note, setNote] = useState<NotePanel>(null);
+  const [loadingNote, setLoadingNote] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,15 +26,24 @@ export default function Graph3D() {
       .catch(() => setError("Backend non raggiungibile"));
   }, []);
 
+  async function openNote(name: string) {
+    setLoadingNote(true);
+    try {
+      const n = await api.getNote(name);
+      setNote({ title: n.title, content: n.content, folder: n.folder });
+    } catch {
+      setNote({ title: name, content: "*Nota non trovata.*", folder: "" });
+    } finally {
+      setLoadingNote(false);
+    }
+  }
+
   useEffect(() => {
     if (!data || !containerRef.current) return;
-
     let fg: any;
     import("3d-force-graph").then((mod) => {
       if (!containerRef.current) return;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ForceGraph3D = (mod as any).default;
-
       fg = ForceGraph3D()(containerRef.current)
         .width(containerRef.current.clientWidth)
         .height(containerRef.current.clientHeight)
@@ -44,55 +55,90 @@ export default function Graph3D() {
         .linkColor(() => "#2a2a3e")
         .linkOpacity(0.5)
         .linkWidth(0.5)
-        .onNodeClick((n: any) => setSelected(n.name))
+        .onNodeClick((n: any) => openNote(n.name))
         .graphData(data);
-
       fg.d3Force("charge")?.strength(-80);
     });
-
     return () => { fg?.pauseAnimation?.(); };
   }, [data]);
 
   return (
-    <div className="relative w-full h-full">
-      <div ref={containerRef} className="w-full h-full" />
+    <div style={{ position: "relative", width: "100%", height: "100%", display: "flex" }}>
+      {/* 3D canvas */}
+      <div ref={containerRef} style={{ flex: 1, height: "100%" }} />
 
       {/* legend */}
-      <div
-        style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}
-        className="absolute top-4 left-4 px-3 py-2 flex flex-col gap-1.5"
-      >
+      <div style={{ position: "absolute", top: 12, left: 12, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px", display: "flex", flexDirection: "column", gap: 5 }}>
         {Object.entries(FOLDER_COLORS).map(([folder, color]) => (
-          <div key={folder} className="flex items-center gap-2">
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: color }} />
+          <div key={folder} style={{ display: "flex", alignItems: "center", gap: 7 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: color, flexShrink: 0 }} />
             <span style={{ color: "var(--muted)", fontSize: 11 }}>{folder || "Root"}</span>
           </div>
         ))}
       </div>
 
-      {/* selected node */}
-      {selected && (
+      {/* note panel */}
+      {(note || loadingNote) && (
         <div
-          style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10 }}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2"
+          style={{
+            position: "absolute", top: 0, right: 0, bottom: 0,
+            width: 320,
+            background: "var(--surface)",
+            borderLeft: "1px solid var(--border)",
+            display: "flex", flexDirection: "column",
+            zIndex: 10,
+          }}
         >
-          <span style={{ color: "var(--accent2)", fontSize: 13 }}>📄 {selected}</span>
-          <button
-            onClick={() => setSelected(null)}
-            style={{ color: "var(--muted)", marginLeft: 12, fontSize: 11 }}
-          >✕</button>
+          {/* header */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: "1px solid var(--border)", flexShrink: 0 }}>
+            <FileText size={14} color="var(--accent2)" />
+            <span style={{ color: "var(--text)", fontSize: 13, fontWeight: 600, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {loadingNote ? "Caricamento..." : note?.title}
+            </span>
+            {note?.folder && (
+              <span style={{ fontSize: 10, color: "var(--muted)", background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>
+                {note.folder}
+              </span>
+            )}
+            <button onClick={() => setNote(null)} style={{ color: "var(--muted)", flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+              <X size={14} />
+            </button>
+          </div>
+
+          {/* content */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
+            {loadingNote ? (
+              <p style={{ color: "var(--muted)", fontSize: 13 }}>Caricamento...</p>
+            ) : (
+              <ReactMarkdown
+                components={{
+                  h1: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 14, margin: "8px 0 4px" }}>{children}</p>,
+                  h2: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 600, fontSize: 13, margin: "6px 0 3px" }}>{children}</p>,
+                  h3: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 600, fontSize: 12.5, margin: "5px 0 2px" }}>{children}</p>,
+                  p: ({ children }) => <p style={{ color: "var(--text)", fontSize: 12.5, lineHeight: 1.65, marginBottom: 6 }}>{children}</p>,
+                  strong: ({ children }) => <strong style={{ color: "var(--accent2)" }}>{children}</strong>,
+                  em: ({ children }) => <em style={{ color: "var(--muted)" }}>{children}</em>,
+                  ul: ({ children }) => <ul style={{ paddingLeft: 14, marginBottom: 6 }}>{children}</ul>,
+                  li: ({ children }) => <li style={{ color: "var(--text)", fontSize: 12.5, lineHeight: 1.6, marginBottom: 2 }}>{children}</li>,
+                  hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "8px 0" }} />,
+                  code: ({ children }) => <code style={{ background: "rgba(0,0,0,0.3)", borderRadius: 3, padding: "1px 5px", fontSize: 11, color: "#34d399" }}>{children}</code>,
+                }}
+              >
+                {note?.content ?? ""}
+              </ReactMarkdown>
+            )}
+          </div>
         </div>
       )}
 
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <p style={{ color: "var(--muted)" }}>{error}</p>
         </div>
       )}
-
       {!data && !error && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p style={{ color: "var(--muted)", fontSize: 13 }}>Caricamento grafo...</p>
+        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <p style={{ color: "var(--muted)", fontSize: 13 }}>Caricamento grafo memoria...</p>
         </div>
       )}
     </div>

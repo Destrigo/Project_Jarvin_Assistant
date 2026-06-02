@@ -1,0 +1,13 @@
+[Unit]
+Description=Jarvis Frontend (Next.js)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/workstation/jarvis_assistant/frontend
+ExecStart=npm run start
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

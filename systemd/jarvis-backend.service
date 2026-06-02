@@ -1,0 +1,15 @@
+[Unit]
+Description=Jarvis Backend (FastAPI + Telegram bot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/workstation/jarvis_assistant
+EnvironmentFile=%h/workstation/jarvis_assistant/.env
+ExecStart=/usr/bin/env uv run jarvis-cron
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

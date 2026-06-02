@@ -1,0 +1,34 @@
+[project]
+name = "jarvis"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    # LLM
+    "requests>=2.32",
+    # Google APIs
+    "google-auth>=2.29",
+    "google-auth-oauthlib>=1.2",
+    "google-api-python-client>=2.127",
+    # Telegram bot
+    "python-telegram-bot[ext]>=21.0",
+    # HTTP webhook trigger
+    "fastapi>=0.111",
+    "uvicorn[standard]>=0.29",
+    # Data / config
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    # Scheduling
+    "apscheduler>=3.10",
+]
+
+[project.scripts]
+jarvis      = "triggers.cli:main"
+jarvis-cron = "triggers.cron:main"
+jarvis-web  = "triggers.webhook:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent", "integrations", "triggers", "memory"]

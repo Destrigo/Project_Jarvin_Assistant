@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useRef, useState, useCallback, memo } from "react";
-import { Send, Bot, Mail, Calendar, FileText, Sparkles } from "lucide-react";
+import { Send, Volume2, VolumeX, Mail, Calendar, FileText, Sparkles, Bot } from "lucide-react";
 import ReactMarkdown, { Components } from "react-markdown";
 import { api, type Message, type PendingAction } from "@/lib/api";
 import PendingBanner from "./PendingBanner";
+import JarvisAvatar, { type AvatarState } from "./JarvisAvatar";
 
 // Defined once outside component — no re-creation on every keystroke
 const MD: Components = {
@@ -101,6 +102,25 @@ const SUGGESTIONS = [
   { icon: Sparkles, text: "Cosa sai di me?" },
 ];
 
+// ── TTS helper ─────────────────────────────────────────────────────────────────
+function speak(text: string, onStart: () => void, onEnd: () => void) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const plain = text.replace(/[#*`_~>]/g, "").replace(/\n+/g, " ").trim();
+  const utt = new SpeechSynthesisUtterance(plain);
+  utt.lang = "it-IT";
+  utt.rate = 1.05;
+  utt.pitch = 1;
+  // prefer Italian voice if available
+  const voices = window.speechSynthesis.getVoices();
+  const itVoice = voices.find((v) => v.lang.startsWith("it"));
+  if (itVoice) utt.voice = itVoice;
+  utt.onstart = onStart;
+  utt.onend = onEnd;
+  utt.onerror = onEnd;
+  window.speechSynthesis.speak(utt);
+}
+
 // ── Main chat ──────────────────────────────────────────────────────────────────
 export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -108,6 +128,8 @@ export default function Chat() {
   const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState<PendingAction[]>([]);
   const [focused, setFocused] = useState(false);
+  const [ttsEnabled, setTtsEnabled] = useState(true);
+  const [avatarState, setAvatarState] = useState<AvatarState>("idle");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -141,11 +163,21 @@ export default function Chat() {
     setInput("");
     if (inputRef.current) { inputRef.current.style.height = "auto"; }
     setLoading(true);
+    setAvatarState("thinking");
     try {
       const res = await api.sendTask(text.trim());
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
       await loadPending();
+      if (ttsEnabled) {
+        speak(res.reply,
+          () => setAvatarState("speaking"),
+          () => setAvatarState("idle")
+        );
+      } else {
+        setAvatarState("idle");
+      }
     } catch {
+      setAvatarState("idle");
       setMessages((m) => [...m, { role: "assistant", content: "⚠️ Impossibile contattare il backend." }]);
     } finally {
       setLoading(false);
@@ -170,15 +202,7 @@ export default function Chat() {
       <div className="flex-1 overflow-y-auto px-5 py-5" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
         {messages.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center h-full gap-5">
-            <div
-              style={{
-                background: "linear-gradient(135deg, #6c63ff22, #a78bfa22)",
-                border: "1px solid #6c63ff44",
-                borderRadius: "50%", padding: 20,
-              }}
-            >
-              <Bot size={36} color="var(--accent2)" strokeWidth={1.5} />
-            </div>
+            <JarvisAvatar state={avatarState} />
             <div className="text-center">
               <h2 style={{ color: "var(--text)", fontSize: 18, fontWeight: 700 }}>Ciao, sono Jarvis</h2>
               <p style={{ color: "var(--muted)", fontSize: 13, marginTop: 4 }}>Il tuo assistente personale. Cosa faccio per te?</p>
@@ -228,8 +252,24 @@ export default function Chat() {
         <div ref={bottomRef} />
       </div>
 
+      {/* avatar bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 16px 0", gap: 16, background: "var(--surface)" }}>
+        <JarvisAvatar state={avatarState} />
+        <button
+          onClick={() => {
+            if (ttsEnabled) window.speechSynthesis?.cancel();
+            setTtsEnabled((v) => !v);
+            if (avatarState === "speaking") setAvatarState("idle");
+          }}
+          title={ttsEnabled ? "Disattiva voce" : "Attiva voce"}
+          style={{ background: "none", border: "none", cursor: "pointer", color: ttsEnabled ? "var(--accent2)" : "var(--muted)", padding: 4 }}
+        >
+          {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        </button>
+      </div>
+
       {/* input area */}
-      <div style={{ borderTop: "1px solid var(--border)", background: "var(--surface)", padding: "12px 16px 14px" }}>
+      <div style={{ borderTop: "none", background: "var(--surface)", padding: "8px 16px 14px" }}>
         <div
           style={{
             background: "var(--surface2)",

@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, BarChart2 } from "lucide-react";
+import { Bot, GitBranch, BarChart2 } from "lucide-react";
 
 const LINKS = [
+  { href: "/graph", label: "Memoria", icon: GitBranch },
   { href: "/stats", label: "Stats", icon: BarChart2 },
 ];
 

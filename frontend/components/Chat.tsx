@@ -252,8 +252,8 @@ export default function Chat() {
         <div ref={bottomRef} />
       </div>
 
-      {/* avatar bar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 16px 0", gap: 16, background: "var(--surface)" }}>
+      {/* avatar bar — extra bottom padding to clear the SYS:ONLINE label */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "10px 16px 28px", gap: 16, background: "var(--surface)" }}>
         <JarvisAvatar state={avatarState} />
         <button
           onClick={() => {

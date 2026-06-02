@@ -20,23 +20,29 @@ export default function Graph3D() {
   const [loadingNote, setLoadingNote] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Ref so the graph callback always sees the latest version without stale closure
+  const openNoteRef = useRef<(name: string) => void>(() => {});
+
+  useEffect(() => {
+    openNoteRef.current = async (name: string) => {
+      setLoadingNote(true);
+      setNote(null);
+      try {
+        const n = await api.getNote(name);
+        setNote({ title: n.title, content: n.content, folder: n.folder });
+      } catch {
+        setNote({ title: name, content: "*Nota non trovata.*", folder: "" });
+      } finally {
+        setLoadingNote(false);
+      }
+    };
+  });
+
   useEffect(() => {
     api.getMemoryGraph()
       .then(setData)
       .catch(() => setError("Backend non raggiungibile"));
   }, []);
-
-  async function openNote(name: string) {
-    setLoadingNote(true);
-    try {
-      const n = await api.getNote(name);
-      setNote({ title: n.title, content: n.content, folder: n.folder });
-    } catch {
-      setNote({ title: name, content: "*Nota non trovata.*", folder: "" });
-    } finally {
-      setLoadingNote(false);
-    }
-  }
 
   useEffect(() => {
     if (!data || !containerRef.current) return;
@@ -55,7 +61,7 @@ export default function Graph3D() {
         .linkColor(() => "#2a2a3e")
         .linkOpacity(0.5)
         .linkWidth(0.5)
-        .onNodeClick((n: any) => openNote(n.name))
+        .onNodeClick((n: any) => openNoteRef.current(n.name))
         .graphData(data);
       fg.d3Force("charge")?.strength(-80);
     });

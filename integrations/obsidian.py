@@ -4,7 +4,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 
-_VAULT = Path(os.getenv("OBSIDIAN_VAULT", str(Path.home() / "Documents" / "Jarvis")))
+_VAULT = Path(os.getenv("OBSIDIAN_VAULT", str(Path.home() / "Documents" / "Jarvis"))).expanduser()
 
 
 def _vault_path() -> Path:

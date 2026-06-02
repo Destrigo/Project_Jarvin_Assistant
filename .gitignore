@@ -7,3 +7,6 @@ config/google_token.json
 memory/store.json
 *.log
 .DS_Store
+# Obsidian vault (personal notes — never commit)
+"~/"
+~/

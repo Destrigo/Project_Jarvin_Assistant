@@ -78,9 +78,10 @@ def resolve(action_id: str, status: str = "approved"):
 @app.get("/memory/graph")
 def memory_graph():
     """Return nodes and edges for the Obsidian vault graph visualization."""
-    from integrations.obsidian import _vault_path
     import re
-    vault = _vault_path()
+    from pathlib import Path
+    vault = Path(os.getenv("OBSIDIAN_VAULT", str(Path.home() / "Documents" / "Jarvis"))).expanduser()
+    vault.mkdir(parents=True, exist_ok=True)
     nodes, edges = [], []
     id_map = {}
     files = list(vault.rglob("*.md"))
@@ -108,9 +109,8 @@ def memory_graph():
 
 @app.get("/stats")
 def get_stats():
-    from integrations.obsidian import _vault_path
-    from datetime import datetime
-    vault = _vault_path()
+    from pathlib import Path
+    vault = Path(os.getenv("OBSIDIAN_VAULT", str(Path.home() / "Documents" / "Jarvis"))).expanduser()
     notes = list(vault.rglob("*.md"))
     memoria = [n for n in notes if "Memoria" in str(n)]
     conv = [n for n in notes if "Conversazioni" in str(n)]

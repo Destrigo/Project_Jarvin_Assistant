@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Send, Loader2, Bot, User } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { api, type Message, type PendingAction } from "@/lib/api";
 import PendingBanner from "./PendingBanner";
 
@@ -28,15 +29,32 @@ function Bubble({ msg }: { msg: Message }) {
           borderRadius: isUser ? "18px 4px 18px 18px" : "4px 18px 18px 18px",
           maxWidth: "75%",
           padding: "10px 14px",
-          color: "var(--text)",
-          fontSize: "13px",
-          lineHeight: "1.6",
-          whiteSpace: "pre-wrap",
           wordBreak: "break-word",
         }}
-        className="prose"
+        className="md-bubble"
       >
-        {msg.content}
+        {isUser ? (
+          <span style={{ color: "#fff", fontSize: 13, lineHeight: 1.6 }}>{msg.content}</span>
+        ) : (
+          <ReactMarkdown
+            components={{
+              h1: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 15, marginBottom: 6, marginTop: 8 }}>{children}</p>,
+              h2: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 700, fontSize: 14, marginBottom: 4, marginTop: 8 }}>{children}</p>,
+              h3: ({ children }) => <p style={{ color: "var(--accent2)", fontWeight: 600, fontSize: 13, marginBottom: 4, marginTop: 8 }}>{children}</p>,
+              p: ({ children }) => <p style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.65, marginBottom: 6 }}>{children}</p>,
+              strong: ({ children }) => <strong style={{ color: "var(--accent2)", fontWeight: 600 }}>{children}</strong>,
+              em: ({ children }) => <em style={{ color: "var(--muted)" }}>{children}</em>,
+              ul: ({ children }) => <ul style={{ paddingLeft: 18, marginBottom: 6 }}>{children}</ul>,
+              ol: ({ children }) => <ol style={{ paddingLeft: 18, marginBottom: 6 }}>{children}</ol>,
+              li: ({ children }) => <li style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.65, marginBottom: 2 }}>{children}</li>,
+              hr: () => <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "10px 0" }} />,
+              code: ({ children }) => <code style={{ background: "rgba(0,0,0,0.3)", borderRadius: 4, padding: "1px 5px", fontSize: 12, color: "#34d399" }}>{children}</code>,
+              blockquote: ({ children }) => <blockquote style={{ borderLeft: "3px solid var(--accent)", paddingLeft: 10, margin: "6px 0", opacity: 0.8 }}>{children}</blockquote>,
+            }}
+          >
+            {msg.content}
+          </ReactMarkdown>
+        )}
       </div>
     </div>
   );

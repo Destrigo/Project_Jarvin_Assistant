@@ -4,6 +4,14 @@ export type Message = { role: "user" | "assistant"; content: string };
 export type Email = { id: string; from: string; subject: string; date: string; snippet: string };
 export type CalEvent = { id: string; title: string; start: string; end: string; description: string };
 export type PendingAction = { id: string; type: string; description: string; status: string; created_at: string };
+export type GraphNode = { id: number; name: string; path: string; folder: string; size: number };
+export type GraphLink = { source: number; target: number };
+export type GraphData = { nodes: GraphNode[]; links: GraphLink[] };
+export type Stats = {
+  vault: { total_notes: number; memory_notes: number; conversation_notes: number };
+  conversations: { total_messages: number; user_messages: number };
+  approvals: { pending: number; resolved: number };
+};
 
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
@@ -39,4 +47,10 @@ export const api = {
 
   resolve: (id: string, status: "approved" | "skipped") =>
     post<{ status: string; result?: string }>(`/resolve/${id}?status=${status}`, {}),
+
+  getMemoryGraph: () =>
+    get<GraphData>("/memory/graph"),
+
+  getStats: () =>
+    get<Stats>("/stats"),
 };

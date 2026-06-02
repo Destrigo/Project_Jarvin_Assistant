@@ -75,6 +75,67 @@ def resolve(action_id: str, status: str = "approved"):
     return {"status": "skipped"}
 
 
+@app.get("/memory/graph")
+def memory_graph():
+    """Return nodes and edges for the Obsidian vault graph visualization."""
+    from integrations.obsidian import _vault_path
+    import re
+    vault = _vault_path()
+    nodes, edges = [], []
+    id_map = {}
+    files = list(vault.rglob("*.md"))
+    for i, f in enumerate(files):
+        rel = str(f.relative_to(vault))
+        folder = rel.split("/")[0] if "/" in rel else ""
+        id_map[f.stem] = i
+        nodes.append({"id": i, "name": f.stem, "path": rel,
+                      "folder": folder, "size": f.stat().st_size})
+    link_re = re.compile(r'\[\[([^\]|#]+)')
+    for f in files:
+        src = id_map.get(f.stem)
+        if src is None: continue
+        try:
+            text = f.read_text(encoding="utf-8", errors="ignore")
+        except Exception:
+            continue
+        for m in link_re.finditer(text):
+            target_name = m.group(1).strip()
+            dst = id_map.get(target_name)
+            if dst is not None and dst != src:
+                edges.append({"source": src, "target": dst})
+    return {"nodes": nodes, "links": edges}
+
+
+@app.get("/stats")
+def get_stats():
+    from integrations.obsidian import _vault_path
+    from datetime import datetime
+    vault = _vault_path()
+    notes = list(vault.rglob("*.md"))
+    memoria = [n for n in notes if "Memoria" in str(n)]
+    conv = [n for n in notes if "Conversazioni" in str(n)]
+    history = store.get_history(n=200)
+    user_msgs = [m for m in history if m["role"] == "user"]
+    pending = store.pending_actions()
+    resolved = [a for a in store._load()["pending"].values()
+                if a["status"] != "pending"]
+    return {
+        "vault": {
+            "total_notes": len(notes),
+            "memory_notes": len(memoria),
+            "conversation_notes": len(conv),
+        },
+        "conversations": {
+            "total_messages": len(history),
+            "user_messages": len(user_msgs),
+        },
+        "approvals": {
+            "pending": len(pending),
+            "resolved": len(resolved),
+        },
+    }
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}

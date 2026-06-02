@@ -1,33 +1,11 @@
 """Google Calendar integration."""
-import os
 from datetime import datetime, timedelta
-from pathlib import Path
-
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-
-_SCOPES = [
-    "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/calendar",
-]
-_TOKEN_PATH = Path("config/google_token.json")
-_SECRET_PATH = Path(os.getenv("GOOGLE_CLIENT_SECRET_FILE", "config/google_client_secret.json"))
+from integrations.google_auth import get_credentials
 
 
 def _service():
-    creds = None
-    if _TOKEN_PATH.exists():
-        creds = Credentials.from_authorized_user_file(_TOKEN_PATH, _SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(_SECRET_PATH, _SCOPES)
-            creds = flow.run_local_server(port=0)
-        _TOKEN_PATH.parent.mkdir(exist_ok=True)
-        _TOKEN_PATH.write_text(creds.to_json())
+    return build("calendar", "v3", credentials=get_credentials())
     return build("calendar", "v3", credentials=creds)
 
 

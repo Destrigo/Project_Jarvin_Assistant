@@ -57,6 +57,8 @@ def pending_actions() -> list[dict]:
 # ── conversation history ───────────────────────────────────────────────────────
 
 def append_message(role: str, content: str) -> None:
+    if not content or not content.strip():
+        return  # never store empty messages — Mistral rejects empty assistant content
     data = _load()
     data["history"].append({"role": role, "content": content,
                             "ts": datetime.utcnow().isoformat()})
@@ -67,7 +69,8 @@ def append_message(role: str, content: str) -> None:
 
 def get_history(n: int = 20) -> list[dict]:
     return [{"role": m["role"], "content": m["content"]}
-            for m in _load()["history"][-n:]]
+            for m in _load()["history"][-n:]
+            if m.get("content", "").strip()]  # skip empty entries already in store
 
 
 def clear_history() -> None:

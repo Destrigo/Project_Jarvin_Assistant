@@ -34,8 +34,12 @@ echo "[4/5] Obsidian vault ready: $VAULT"
 
 # 5. Enable systemd services
 echo "[5/5] Enabling systemd autostart..."
+SYSTEMD_USER_DIR="$HOME/.config/systemd/user"
+mkdir -p "$SYSTEMD_USER_DIR"
+cp "$SCRIPT_DIR/systemd/"*.service "$SYSTEMD_USER_DIR/"
 systemctl --user daemon-reload
 systemctl --user enable jarvis-backend.service
+systemctl --user enable jarvis-web.service
 systemctl --user enable jarvis-frontend.service
 loginctl enable-linger "$USER" 2>/dev/null || true
 

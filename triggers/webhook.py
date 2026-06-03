@@ -1,15 +1,19 @@
 """HTTP webhook trigger — uv run jarvis-web"""
 import os
+import json as _json
+import threading
+import queue as _queue
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 import uvicorn
 
-from agent.loop import run
+from agent.loop import run, stream_run
 import memory.store as store
 
 app = FastAPI(title="Jarvis", version="0.1.0")
@@ -37,6 +41,54 @@ def handle_task(req: TaskRequest):
     store.append_message("user", req.task)
     store.append_message("assistant", reply)
     return {"reply": reply, "pending_approvals": len(store.pending_actions())}
+
+
+@app.post("/task/stream")
+async def handle_task_stream(req: TaskRequest):
+    if _SECRET and req.secret != _SECRET:
+        raise HTTPException(status_code=401, detail="Invalid secret")
+
+    import asyncio
+
+    async def generate():
+        loop = asyncio.get_running_loop()
+        q: _queue.Queue = _queue.Queue()
+
+        def producer():
+            try:
+                for event in stream_run(req.task):
+                    q.put(event)
+            except Exception as exc:
+                q.put({"event": "error", "data": {"message": str(exc)}})
+            finally:
+                q.put(None)
+
+        threading.Thread(target=producer, daemon=True).start()
+
+        reply = ""
+        while True:
+            event = await loop.run_in_executor(None, q.get)
+            if event is None:
+                break
+            if event["event"] == "done":
+                reply = event["data"].get("reply", "")
+            sse = f"event: {event['event']}\ndata: {_json.dumps(event['data'], ensure_ascii=False)}\n\n"
+            yield sse.encode()
+
+        store.append_message("user", req.task)
+        store.append_message("assistant", reply)
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/email/{email_id}")
+def get_email(email_id: str):
+    from integrations.gmail import read_email
+    return read_email(email_id)
 
 
 @app.get("/history")
@@ -147,6 +199,39 @@ def get_stats():
             "resolved": len(resolved),
         },
     }
+
+
+@app.post("/tts")
+async def tts_endpoint(request: Request):
+    """Generate speech from text using Kokoro TTS. Returns audio/wav."""
+    import asyncio
+    body = await request.json()
+    text = body.get("text", "").strip()
+    voice = body.get("voice", None)
+    speed = body.get("speed", None)
+
+    if not text:
+        raise HTTPException(status_code=400, detail="text is required")
+
+    loop = asyncio.get_running_loop()
+    try:
+        from integrations.tts import synthesize
+        wav_bytes = await loop.run_in_executor(None, lambda: synthesize(text, voice, speed))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"TTS error: {e}")
+
+    return Response(
+        content=wav_bytes,
+        media_type="audio/wav",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/tts/voices")
+def tts_voices():
+    """Return available TTS voices."""
+    from integrations.tts import VOICES, _DEFAULT_VOICE
+    return {"voices": VOICES, "default": _DEFAULT_VOICE}
 
 
 @app.get("/health")

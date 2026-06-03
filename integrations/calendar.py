@@ -6,7 +6,6 @@ from integrations.google_auth import get_credentials
 
 def _service():
     return build("calendar", "v3", credentials=get_credentials())
-    return build("calendar", "v3", credentials=creds)
 
 
 def list_events(days_ahead: int = 7) -> list[dict]:

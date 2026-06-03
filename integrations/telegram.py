@@ -84,6 +84,27 @@ def _execute_approved(action: dict) -> str:
         from pathlib import Path
         Path(p["path"]).write_text(p["content"])
         return f"File scritto: {p['path']}"
+    if t == "shell_exec":
+        import subprocess
+        res = subprocess.run(
+            p["command"], shell=True, capture_output=True, text=True,
+            timeout=p.get("timeout", 30),
+        )
+        out = (res.stdout + res.stderr)[:500]
+        return f"Eseguito (rc={res.returncode}):\n{out}"
+    if t == "sheets_write":
+        from integrations.gsheets import sheets_write
+        r = sheets_write(p["spreadsheet_id"], p["range_"], p["values"])
+        return f"Sheets aggiornato: {r.get('updated_cells', '?')} celle in {r.get('updated_range', '?')}"
+    if t == "sheets_append":
+        from integrations.gsheets import sheets_append
+        r = sheets_append(p["spreadsheet_id"], p["range_"], p["values"])
+        return f"Sheets: aggiunte {r.get('appended_rows', '?')} righe in {r.get('appended_range', '?')}"
+    if t == "tasks_create":
+        from integrations.gtasks import tasks_create
+        r = tasks_create(p["title"], p.get("tasklist_id", "@default"),
+                         p.get("due", ""), p.get("notes", ""))
+        return f"Task creato: {r['title']} (id: {r['id']})"
     return f"Azione '{t}' eseguita"
 
 

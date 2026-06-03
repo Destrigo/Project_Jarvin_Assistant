@@ -8,11 +8,11 @@ const COLORS = {
   speaking: { primary: "#00ff9d", secondary: "#00aaff", glow: "#00ff9d44" },
 };
 
-export default function JarvisAvatar({ state }: { state: AvatarState }) {
+export default function JarvisAvatar({ state, size = 80 }: { state: AvatarState; size?: number }) {
   const c = COLORS[state];
 
   return (
-    <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       <style>{`
         @keyframes scanline {
           0%   { top: 10%; opacity: 1; }
@@ -60,7 +60,7 @@ export default function JarvisAvatar({ state }: { state: AvatarState }) {
       }} />
 
       {/* SVG rings */}
-      <svg viewBox="0 0 80 80" width="80" height="80" style={{ position: "absolute", inset: 0 }}>
+      <svg viewBox="0 0 80 80" width={size} height={size} style={{ position: "absolute", inset: 0 }}>
         {/* outer dashed ring — rotates */}
         <circle cx="40" cy="40" r="37"
           fill="none"

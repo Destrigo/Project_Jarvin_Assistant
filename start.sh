@@ -7,12 +7,13 @@ trap 'kill $(jobs -p) 2>/dev/null; echo "Jarvis fermato."' EXIT INT TERM
 
 echo "Avvio Jarvis..."
 cd "$SCRIPT_DIR"
+uv run jarvis-web &
 uv run jarvis-cron &
 
 cd "$SCRIPT_DIR/frontend"
 npm run dev &
 
-echo "Backend:  http://localhost:8080"
+echo "API HTTP: http://localhost:8080"
 echo "Frontend: http://localhost:3000"
 echo "Premi Ctrl+C per fermare tutto."
 wait

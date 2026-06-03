@@ -12,6 +12,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 _SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
     "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/tasks",
 ]
 
 _TOKEN_PATH = Path("config/google_token.json")

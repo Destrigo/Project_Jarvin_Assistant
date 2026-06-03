@@ -10,3 +10,6 @@ memory/store.json
 # Obsidian vault (personal notes — never commit)
 "~/"
 ~/
+
+memory/scheduled_tasks.json
+models/

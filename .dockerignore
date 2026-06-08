@@ -4,6 +4,6 @@ __pycache__/
 *.pyc
 .env
 config/google_token.json
-memory/
+memory/*.json
 .git/
 *.log

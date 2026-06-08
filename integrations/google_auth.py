@@ -29,8 +29,11 @@ def get_credentials() -> Credentials:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(_SECRET_PATH, _SCOPES)
-            creds = flow.run_local_server(port=0)
+            raise RuntimeError(
+                "Credenziali Google mancanti o scadute sul server. "
+                "Carica google_token.json e google_client_secret.json come Secret Files su Render "
+                "(Settings → Secret Files → /etc/secrets/google_token.json)."
+            )
         _TOKEN_PATH.parent.mkdir(exist_ok=True)
         _TOKEN_PATH.write_text(creds.to_json())
     return creds

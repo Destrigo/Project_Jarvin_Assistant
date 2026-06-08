@@ -16,8 +16,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-# Bake Chromium into the image (avoids slow runtime download)
-RUN uv run playwright install chromium
+# Only the headless shell (~113 MB) — skips full Chrome + FFmpeg (~180 MB)
+RUN uv run playwright install --only-shell chromium
 
 COPY . .
 

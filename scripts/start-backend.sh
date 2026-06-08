@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+set +e  # credential decode failures must not abort startup
 
 DATA="${JARVIS_HOME:-/tmp/jarvis}"
 mkdir -p "$DATA/memory" "$DATA/vault"
@@ -18,5 +19,6 @@ elif [ -n "$GOOGLE_TOKEN_JSON_B64" ]; then
     printf '%s' "$GOOGLE_TOKEN_JSON_B64" | tr -d ' \n\r' | base64 -d > "$DATA/google_token.json"
 fi
 
+set -e  # re-enable for the actual app launch
 uv run jarvis-web &
 exec uv run jarvis-cron

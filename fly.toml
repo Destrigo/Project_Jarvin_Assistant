@@ -1,0 +1,34 @@
+app            = "jarvis-mt"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[mounts]]
+  source       = "jarvis_data"
+  destination  = "/data"
+  initial_size = "5gb"
+
+[env]
+  JARVIS_HOME               = "/data"
+  OBSIDIAN_VAULT            = "/data/vault"
+  GOOGLE_TOKEN_FILE         = "/data/google_token.json"
+  GOOGLE_CLIENT_SECRET_FILE = "/data/google_client_secret.json"
+
+[[services]]
+  internal_port = 8080
+  protocol      = "tcp"
+
+  [[services.ports]]
+    handlers    = ["http"]
+    port        = 80
+    force_https = true
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port     = 443
+
+[[vm]]
+  memory   = "1gb"
+  cpu_kind = "shared"
+  cpus     = 1

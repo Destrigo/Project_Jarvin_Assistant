@@ -1,11 +1,13 @@
 """Simple JSON-backed state store for pending approvals and conversation history."""
 import json
+import os
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-_PATH = Path(__file__).parent / "store.json"
+_home = Path(os.environ.get("JARVIS_HOME", Path(__file__).parent.parent))
+_PATH = _home / "memory" / "store.json"
 
 
 def _load() -> dict:

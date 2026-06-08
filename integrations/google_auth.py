@@ -17,7 +17,7 @@ _SCOPES = [
     "https://www.googleapis.com/auth/tasks",
 ]
 
-_TOKEN_PATH = Path("config/google_token.json")
+_TOKEN_PATH  = Path(os.getenv("GOOGLE_TOKEN_FILE",   "config/google_token.json"))
 _SECRET_PATH = Path(os.getenv("GOOGLE_CLIENT_SECRET_FILE", "config/google_client_secret.json"))
 
 

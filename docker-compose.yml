@@ -1,0 +1,33 @@
+services:
+
+  # Background jobs: APScheduler cron + Telegram bot
+  cron:
+    build: .
+    env_file: .env
+    environment:
+      JARVIS_HOME: /data
+      OBSIDIAN_VAULT: /data/vault
+      GOOGLE_TOKEN_FILE: /data/google_token.json
+      GOOGLE_CLIENT_SECRET_FILE: /data/google_client_secret.json
+    volumes:
+      - jarvis-data:/data
+    restart: unless-stopped
+
+  # FastAPI — exposes the /task /history /resolve /stats ... endpoints
+  web:
+    build: .
+    command: ["uv", "run", "jarvis-web"]
+    env_file: .env
+    environment:
+      JARVIS_HOME: /data
+      OBSIDIAN_VAULT: /data/vault
+      GOOGLE_TOKEN_FILE: /data/google_token.json
+      GOOGLE_CLIENT_SECRET_FILE: /data/google_client_secret.json
+    volumes:
+      - jarvis-data:/data
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  jarvis-data:

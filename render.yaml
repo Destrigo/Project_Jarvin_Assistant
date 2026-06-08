@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: jarvis-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: frankfurt
+
+    envVars:
+      - key: JARVIS_HOME
+        value: /tmp/jarvis
+      - key: OBSIDIAN_VAULT
+        value: /tmp/jarvis/vault
+      - key: GOOGLE_TOKEN_FILE
+        value: /tmp/jarvis/google_token.json
+      - key: GOOGLE_CLIENT_SECRET_FILE
+        value: /tmp/jarvis/google_client_secret.json
+
+      # Set these manually in the Render dashboard (Generate with: scripts/encode-secrets.sh)
+      - key: MISTRAL_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET_JSON_B64
+        sync: false
+      - key: GOOGLE_TOKEN_JSON_B64
+        sync: false

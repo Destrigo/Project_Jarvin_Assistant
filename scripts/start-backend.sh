@@ -8,10 +8,10 @@ mkdir -p "$DATA/memory" "$DATA/vault"
 # Decode Google credentials from base64 secrets (set on Render/Fly dashboard)
 # Local: files already exist in config/, nothing to do
 if [ -n "$GOOGLE_CLIENT_SECRET_JSON_B64" ]; then
-    echo "$GOOGLE_CLIENT_SECRET_JSON_B64" | base64 -d > "$DATA/google_client_secret.json"
+    printf '%s' "$GOOGLE_CLIENT_SECRET_JSON_B64" | tr -d ' \n\r' | base64 -d > "$DATA/google_client_secret.json"
 fi
 if [ -n "$GOOGLE_TOKEN_JSON_B64" ]; then
-    echo "$GOOGLE_TOKEN_JSON_B64" | base64 -d > "$DATA/google_token.json"
+    printf '%s' "$GOOGLE_TOKEN_JSON_B64" | tr -d ' \n\r' | base64 -d > "$DATA/google_token.json"
 fi
 
 # Start web API in background, cron+Telegram bot in foreground (PID 1)

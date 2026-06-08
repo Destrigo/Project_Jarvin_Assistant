@@ -7,13 +7,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Security
+from fastapi.security import APIKeyHeader
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, Response
 from pydantic import BaseModel
 import uvicorn
 
-from agent.loop import run, stream_run
+from agent.loop import run, stream_run, get_active_persona, set_active_persona
+from agent.personas import PERSONAS
 import memory.store as store
 
 app = FastAPI(title="Jarvis", version="0.1.0")
@@ -26,6 +28,13 @@ app.add_middleware(
 )
 
 _SECRET = os.getenv("WEBHOOK_SECRET", "")
+_header_scheme = APIKeyHeader(name="X-Secret", auto_error=False)
+
+
+def _auth(key: str = Security(_header_scheme)) -> None:
+    """Dependency: raises 401 if WEBHOOK_SECRET is set and key doesn't match."""
+    if _SECRET and key != _SECRET:
+        raise HTTPException(status_code=401, detail="Invalid or missing X-Secret header")
 
 
 class TaskRequest(BaseModel):
@@ -34,8 +43,9 @@ class TaskRequest(BaseModel):
 
 
 @app.post("/task")
-def handle_task(req: TaskRequest):
-    if _SECRET and req.secret != _SECRET:
+def handle_task(req: TaskRequest, _: None = Security(_auth)):
+    # Accept secret from body (frontend) or header (curl/scripts)
+    if _SECRET and req.secret and req.secret != _SECRET:
         raise HTTPException(status_code=401, detail="Invalid secret")
     reply = run(req.task)
     store.append_message("user", req.task)
@@ -44,7 +54,7 @@ def handle_task(req: TaskRequest):
 
 
 @app.post("/task/stream")
-async def handle_task_stream(req: TaskRequest):
+async def handle_task_stream(req: TaskRequest, _: None = Security(_auth)):
     if _SECRET and req.secret != _SECRET:
         raise HTTPException(status_code=401, detail="Invalid secret")
 
@@ -86,35 +96,35 @@ async def handle_task_stream(req: TaskRequest):
 
 
 @app.get("/email/{email_id}")
-def get_email(email_id: str):
+def get_email(email_id: str, _: None = Security(_auth)):
     from integrations.gmail import read_email
     return read_email(email_id)
 
 
 @app.get("/history")
-def get_history():
+def get_history(_: None = Security(_auth)):
     return {"messages": store.get_history(n=50)}
 
 
 @app.get("/emails")
-def get_emails(max_results: int = 10, query: str = "is:unread"):
+def get_emails(max_results: int = 10, query: str = "is:unread", _: None = Security(_auth)):
     from integrations.gmail import list_emails
     return {"emails": list_emails(max_results=max_results, query=query)}
 
 
 @app.get("/events")
-def get_events(days_ahead: int = 7):
+def get_events(days_ahead: int = 7, _: None = Security(_auth)):
     from integrations.calendar import list_events
     return {"events": list_events(days_ahead=days_ahead)}
 
 
 @app.get("/pending")
-def get_pending():
+def get_pending(_: None = Security(_auth)):
     return {"pending": store.pending_actions()}
 
 
 @app.post("/resolve/{action_id}")
-def resolve(action_id: str, status: str = "approved"):
+def resolve(action_id: str, status: str = "approved", _: None = Security(_auth)):
     if status not in ("approved", "skipped"):
         raise HTTPException(status_code=400, detail="status must be 'approved' or 'skipped'")
     action = store.resolve_action(action_id, status)  # type: ignore[arg-type]
@@ -128,7 +138,7 @@ def resolve(action_id: str, status: str = "approved"):
 
 
 @app.get("/memory/note")
-def get_note(title: str):
+def get_note(title: str, _: None = Security(_auth)):
     from pathlib import Path
     vault = Path(os.getenv("OBSIDIAN_VAULT", str(Path.home() / "Documents" / "Jarvis"))).expanduser()
     matches = list(vault.rglob(f"{title}.md"))
@@ -141,7 +151,7 @@ def get_note(title: str):
 
 
 @app.get("/memory/graph")
-def memory_graph():
+def memory_graph(_: None = Security(_auth)):
     """Return nodes and edges for the Obsidian vault graph visualization."""
     import re
     from pathlib import Path
@@ -173,7 +183,7 @@ def memory_graph():
 
 
 @app.get("/stats")
-def get_stats():
+def get_stats(_: None = Security(_auth)):
     from pathlib import Path
     vault = Path(os.getenv("OBSIDIAN_VAULT", str(Path.home() / "Documents" / "Jarvis"))).expanduser()
     notes = list(vault.rglob("*.md"))
@@ -202,7 +212,7 @@ def get_stats():
 
 
 @app.post("/tts")
-async def tts_endpoint(request: Request):
+async def tts_endpoint(request: Request, _: None = Security(_auth)):
     """Generate speech from text using Kokoro TTS. Returns audio/wav."""
     import asyncio
     body = await request.json()
@@ -232,6 +242,43 @@ def tts_voices():
     """Return available TTS voices."""
     from integrations.tts import VOICES, _DEFAULT_VOICE
     return {"voices": VOICES, "default": _DEFAULT_VOICE}
+
+
+@app.get("/personas")
+def list_personas(_: None = Security(_auth)):
+    """Return all available personas."""
+    active = get_active_persona()
+    return {
+        "personas": [
+            {
+                "slug": slug,
+                "name": p["name"],
+                "description": p["description"],
+                "emoji": p["emoji"],
+                "active": slug == active,
+            }
+            for slug, p in PERSONAS.items()
+        ],
+        "active": active,
+    }
+
+
+@app.get("/persona")
+def current_persona(_: None = Security(_auth)):
+    """Return the active persona."""
+    slug = get_active_persona()
+    p = PERSONAS[slug]
+    return {"slug": slug, "name": p["name"], "description": p["description"], "emoji": p["emoji"]}
+
+
+@app.post("/persona/{slug}")
+def switch_persona(slug: str, _: None = Security(_auth)):
+    """Set the active persona."""
+    if slug not in PERSONAS:
+        raise HTTPException(status_code=404, detail=f"Persona '{slug}' not found")
+    set_active_persona(slug)
+    p = PERSONAS[slug]
+    return {"slug": slug, "name": p["name"], "description": p["description"], "emoji": p["emoji"]}
 
 
 @app.get("/health")

@@ -2,6 +2,8 @@
 
 Jobs:
   daily_digest     — ogni mattina alle DAILY_DIGEST_HOUR (default 8), include email di ieri
+  followup_check   — ogni giorno alle 9:00, notifica mail senza risposta
+  weekly_journal   — ogni domenica alle 20:00, riassunto diario settimanale
   alerts_check     — ogni CHECK_ALERTS_MIN minuti (default 5)
   scheduled_tasks  — ogni minuto
   self_ping        — ogni 10 minuti (Render free tier keepalive)
@@ -46,6 +48,47 @@ def daily_digest_job():
         send(f"🌅 *Buongiorno — digest del giorno*\n\n{reply}")
     except Exception as e:
         log.error(f"Daily digest failed: {e}")
+
+
+def followup_check_job():
+    log.info("Running follow-up check job...")
+    try:
+        from integrations.followups import check
+        from datetime import datetime, timezone
+        overdue = check()
+        for entry in overdue:
+            sent_at = datetime.fromisoformat(entry["sent_at"])
+            days = int((datetime.now(timezone.utc) - sent_at).total_seconds() / 86400)
+            send(
+                f"📭 *Nessuna risposta dopo {days} giorni*\n\n"
+                f"A: {entry['to']}\n"
+                f"Oggetto: {entry['subject']}\n\n"
+                f"Vuoi che prepari un follow-up?\n`id: {entry['id']}`"
+            )
+    except Exception as e:
+        log.error(f"Follow-up check failed: {e}")
+
+
+def weekly_journal_job():
+    log.info("Running weekly journal summary job...")
+    try:
+        from integrations.journal import get_week_entries
+        entries = get_week_entries()
+        if not entries:
+            send("📓 *Riassunto settimanale*\n\nNessun appunto registrato questa settimana.")
+            return
+        combined = "\n\n".join(f"**{d}**\n{content}" for d, content in entries.items())
+        prompt = (
+            "Sei il mio assistente personale. Ho registrato questi appunti nel diario questa settimana:\n\n"
+            f"{combined}\n\n"
+            "Fai un riassunto conciso della settimana: temi ricorrenti, decisioni prese, cose da ricordare. "
+            "Tono personale e diretto, senza fronzoli. Massimo 300 parole."
+        )
+        reply = run(prompt)
+        store.append_message("assistant", reply)
+        send(f"📓 *Riassunto della settimana*\n\n{reply}")
+    except Exception as e:
+        log.error(f"Weekly journal failed: {e}")
 
 
 def alerts_check_job():
@@ -108,15 +151,17 @@ def main():
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(daily_digest_job,   "cron",     hour=_DAILY_DIGEST_HOUR, minute=0, id="daily_digest")
-    scheduler.add_job(alerts_check_job,   "interval", minutes=_CHECK_ALERTS_MIN,   id="alerts_check")
-    scheduler.add_job(scheduled_tasks_job,"interval", minutes=1,                   id="scheduled_tasks")
-    scheduler.add_job(self_ping_job,      "interval", minutes=10,                  id="self_ping")
+    scheduler.add_job(followup_check_job, "cron",     hour=9,  minute=0,              id="followup_check")
+    scheduler.add_job(weekly_journal_job, "cron",     day_of_week="sun", hour=20, minute=0, id="weekly_journal")
+    scheduler.add_job(alerts_check_job,   "interval", minutes=_CHECK_ALERTS_MIN,      id="alerts_check")
+    scheduler.add_job(scheduled_tasks_job,"interval", minutes=1,                      id="scheduled_tasks")
+    scheduler.add_job(self_ping_job,      "interval", minutes=10,                     id="self_ping")
     scheduler.start()
     log.info(
-        f"Scheduler started — digest giornaliero alle {_DAILY_DIGEST_HOUR}:00 (email di ieri incluse), "
-        f"alert check ogni {_CHECK_ALERTS_MIN}min, "
-        f"task check ogni minuto, "
-        f"self-ping ogni 10min"
+        f"Scheduler started — digest alle {_DAILY_DIGEST_HOUR}:00, "
+        f"follow-up check alle 9:00, "
+        f"riassunto diario domenica 20:00, "
+        f"alert ogni {_CHECK_ALERTS_MIN}min"
     )
 
     log.info("Starting Telegram bot...")

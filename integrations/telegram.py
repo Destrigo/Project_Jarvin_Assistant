@@ -118,9 +118,49 @@ async def _on_message(update: Update, _ctx) -> None:
     await update.message.reply_text(reply)
 
 
+async def _on_diario(update: Update, ctx) -> None:
+    """/diario <testo> — salva una nota nel diario di oggi."""
+    text = " ".join(ctx.args).strip()
+    if not text:
+        await update.message.reply_text("Uso: /diario <testo da salvare nel diario>")
+        return
+    from integrations.journal import save_entry
+    path = save_entry(text, source="telegram")
+    await update.message.reply_text(f"📝 Salvato nel diario ({path.name})")
+
+
+async def _on_voice(update: Update, ctx) -> None:
+    """Voice message → trascrivi con whisper e salva nel diario."""
+    import tempfile, os
+    from integrations.journal import save_entry, _transcribe
+
+    voice = update.message.voice
+    tg_file = await ctx.bot.get_file(voice.file_id)
+
+    with tempfile.NamedTemporaryFile(suffix=".ogg", delete=False) as tmp:
+        tmp_path = tmp.name
+
+    try:
+        await tg_file.download_to_drive(tmp_path)
+        text = _transcribe(tmp_path)
+    finally:
+        os.unlink(tmp_path)
+
+    if text:
+        path = save_entry(text, source="voice")
+        await update.message.reply_text(f"🎙️ Trascritto e salvato nel diario ({path.name}):\n_{text[:200]}_")
+    else:
+        await update.message.reply_text(
+            "🎙️ Audio ricevuto ma trascrizione non disponibile.\n"
+            "Usa /diario <testo> per aggiungere una nota manualmente."
+        )
+
+
 def build_app() -> Application:
     app = Application.builder().token(_TOKEN).build()
     app.add_handler(CallbackQueryHandler(_on_callback))
+    app.add_handler(CommandHandler("diario", _on_diario))
+    app.add_handler(MessageHandler(filters.VOICE, _on_voice))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _on_message))
     return app
 

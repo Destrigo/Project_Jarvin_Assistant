@@ -387,6 +387,30 @@ def memory_ingest(title: str, content: str, folder: str = "Fonti") -> dict:
     return ingest_source(title, content, folder)
 
 
+def followup_add(to: str, subject: str, days: int = 3) -> dict:
+    """Traccia una mail inviata: notifica se non arriva risposta entro N giorni."""
+    from integrations.followups import add
+    return add(to, subject, days)
+
+
+def followup_list() -> dict:
+    from integrations.followups import list_pending
+    return {"followups": list_pending()}
+
+
+def followup_dismiss(entry_id: str) -> dict:
+    from integrations.followups import dismiss
+    ok = dismiss(entry_id)
+    return {"dismissed": ok}
+
+
+def journal_add(text: str) -> dict:
+    """Aggiunge un appunto al diario di oggi."""
+    from integrations.journal import save_entry
+    path = save_entry(text, source="jarvis")
+    return {"saved": True, "file": str(path)}
+
+
 # ── schema + dispatch ──────────────────────────────────────────────────────────
 
 TOOLS: list[dict] = [
@@ -1165,6 +1189,58 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "followup_add",
+            "description": "Dopo aver inviato una mail, tracciala per ricevere un promemoria se non arriva risposta entro N giorni (default 3).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "to":      {"type": "string", "description": "Indirizzo email del destinatario"},
+                    "subject": {"type": "string", "description": "Oggetto della mail inviata"},
+                    "days":    {"type": "integer", "description": "Giorni di attesa prima del promemoria", "default": 3},
+                },
+                "required": ["to", "subject"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "followup_list",
+            "description": "Elenca i follow-up email ancora in attesa di risposta.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "followup_dismiss",
+            "description": "Rimuove un follow-up dal tracciamento (es. risposta arrivata fuori Gmail, o non serve più).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "entry_id": {"type": "string", "description": "ID del follow-up (da followup_list)"},
+                },
+                "required": ["entry_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "journal_add",
+            "description": "Aggiunge un appunto al diario personale di oggi (salvato in Obsidian/Diario/).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "text": {"type": "string", "description": "Testo dell'appunto da salvare"},
+                },
+                "required": ["text"],
+            },
+        },
+    },
 ]
 
 _DISPATCH: dict[str, callable] = {
@@ -1218,6 +1294,10 @@ _DISPATCH: dict[str, callable] = {
     "alert_pause":   alert_pause,
     "browser_fetch":    browser_fetch,
     "browser_interact": browser_interact,
+    "followup_add":     followup_add,
+    "followup_list":    followup_list,
+    "followup_dismiss": followup_dismiss,
+    "journal_add":      journal_add,
 }
 
 

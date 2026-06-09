@@ -1,10 +1,10 @@
 """Cron trigger — uv run jarvis-cron
 
 Jobs:
-  daily_digest     — ogni mattina (DAILY_DIGEST_HOUR, default 8)
-  email_digest     — ogni CHECK_INTERVAL_MIN minuti
+  daily_digest     — ogni mattina alle DAILY_DIGEST_HOUR (default 8), include email di ieri
   alerts_check     — ogni CHECK_ALERTS_MIN minuti (default 5)
   scheduled_tasks  — ogni minuto
+  self_ping        — ogni 10 minuti (Render free tier keepalive)
 """
 import os
 import logging
@@ -20,7 +20,6 @@ import memory.store as store
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-_CHECK_INTERVAL_MIN  = int(os.getenv("CHECK_INTERVAL_MIN", "15"))
 _CHECK_ALERTS_MIN    = int(os.getenv("CHECK_ALERTS_MIN", "5"))
 _DAILY_DIGEST_HOUR   = int(os.getenv("DAILY_DIGEST_HOUR", "8"))
 _DAILY_DIGEST_CITY   = os.getenv("DAILY_DIGEST_CITY", "")
@@ -28,11 +27,15 @@ _DAILY_DIGEST_CITY   = os.getenv("DAILY_DIGEST_CITY", "")
 
 def daily_digest_job():
     log.info("Running daily digest job...")
+    from datetime import date, timedelta
+    yesterday = (date.today() - timedelta(days=1)).strftime("%Y/%m/%d")
+    today     = date.today().strftime("%Y/%m/%d")
     try:
         prompt = (
             "Buongiorno! Prepara il digest mattutino con:\n"
             "1. Gli eventi di calendario di oggi (list_events con days_ahead=1)\n"
-            "2. Il conteggio email non lette e le più importanti/urgenti (list_emails)\n"
+            f"2. Tutte le email ricevute ieri — usa list_emails con query='after:{yesterday} before:{today}' e max_results=50. "
+            "Raggruppa per mittente o tema, evidenzia quelle urgenti o che richiedono risposta.\n"
             "3. I task Google in scadenza oggi o già scaduti (tasks_list)\n"
             + (f"4. Il meteo a {_DAILY_DIGEST_CITY} (weather)\n" if _DAILY_DIGEST_CITY else "")
             + "Formatta il tutto in modo conciso e leggibile per Telegram. "
@@ -43,16 +46,6 @@ def daily_digest_job():
         send(f"🌅 *Buongiorno — digest del giorno*\n\n{reply}")
     except Exception as e:
         log.error(f"Daily digest failed: {e}")
-
-
-def email_digest_job():
-    log.info("Running email digest job...")
-    try:
-        reply = run("Controlla le email non lette, fai un triage e per quelle che richiedono risposta prepara una bozza.")
-        store.append_message("assistant", reply)
-        send(f"📬 *Digest email*\n\n{reply}")
-    except Exception as e:
-        log.error(f"Email digest failed: {e}")
 
 
 def alerts_check_job():
@@ -115,14 +108,12 @@ def main():
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(daily_digest_job,   "cron",     hour=_DAILY_DIGEST_HOUR, minute=0, id="daily_digest")
-    scheduler.add_job(email_digest_job,   "interval", minutes=_CHECK_INTERVAL_MIN, id="email_digest")
     scheduler.add_job(alerts_check_job,   "interval", minutes=_CHECK_ALERTS_MIN,   id="alerts_check")
     scheduler.add_job(scheduled_tasks_job,"interval", minutes=1,                   id="scheduled_tasks")
     scheduler.add_job(self_ping_job,      "interval", minutes=10,                  id="self_ping")
     scheduler.start()
     log.info(
-        f"Scheduler started — digest giornaliero alle {_DAILY_DIGEST_HOUR}:00, "
-        f"email ogni {_CHECK_INTERVAL_MIN}min, "
+        f"Scheduler started — digest giornaliero alle {_DAILY_DIGEST_HOUR}:00 (email di ieri incluse), "
         f"alert check ogni {_CHECK_ALERTS_MIN}min, "
         f"task check ogni minuto, "
         f"self-ping ogni 10min"

@@ -1,4 +1,5 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+const BASE   = process.env.NEXT_PUBLIC_API_URL    ?? "http://localhost:8080";
+const SECRET = process.env.NEXT_PUBLIC_API_SECRET ?? "";
 
 export type Message = { role: "user" | "assistant"; content: string };
 export type Email = { id: string; from: string; subject: string; date: string; snippet: string };
@@ -14,6 +15,8 @@ export type Stats = {
   approvals: { pending: number; resolved: number };
 };
 
+export type Persona = { slug: string; name: string; description: string; emoji: string; active?: boolean };
+
 export type SSEEvent =
   | { event: "status";   data: { phase: "thinking" | "responding" } }
   | { event: "tool";     data: { name: string } }
@@ -21,8 +24,15 @@ export type SSEEvent =
   | { event: "done";     data: { reply: string } }
   | { event: "error";    data: { message: string } };
 
+function authHeaders(extra?: Record<string, string>): Record<string, string> {
+  return { ...(SECRET ? { "X-Secret": SECRET } : {}), ...extra };
+}
+
 async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
+  const res = await fetch(`${BASE}${path}`, {
+    cache: "no-store",
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error(`${res.status} ${path}`);
   return res.json();
 }
@@ -30,7 +40,7 @@ async function get<T>(path: string): Promise<T> {
 async function post<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`${res.status} ${path}`);
@@ -40,7 +50,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 async function* streamTask(task: string): AsyncGenerator<SSEEvent> {
   const res = await fetch(`${BASE}/task/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({ task }),
   });
   if (!res.ok || !res.body) throw new Error(`${res.status} /task/stream`);
@@ -113,4 +123,13 @@ export const api = {
 
   getStats: () =>
     get<Stats>("/stats"),
+
+  getPersonas: () =>
+    get<{ personas: Persona[]; active: string }>("/personas"),
+
+  getActivePersona: () =>
+    get<Persona>("/persona"),
+
+  setPersona: (slug: string) =>
+    post<Persona>(`/persona/${slug}`, {}),
 };

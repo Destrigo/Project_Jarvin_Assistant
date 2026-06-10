@@ -1,28 +1,32 @@
 #!/bin/bash
+# Jarvis è disattivato. Per riattivare, ripristina l'ultimo commit funzionante:
+#   git revert HEAD && git push
 set -e
 
-DATA="${JARVIS_HOME:-/tmp/jarvis}"
-mkdir -p "$DATA/memory" "$DATA/vault"
+echo "[jarvis] Modalità offline — il servizio risponde solo a /health"
 
-# Write Google credentials from env vars (JSON content, no base64)
-# Set GOOGLE_TOKEN_JSON and GOOGLE_CLIENT_SECRET_JSON in Render → Environment
-python3 - <<'PYEOF'
-import os
-from pathlib import Path
+python3 - << 'EOF'
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
-data = Path(os.environ.get("JARVIS_HOME", "/tmp/jarvis"))
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_GET(self):
+        if self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"status":"offline"}')
+        else:
+            self.send_response(503)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"detail":"Jarvis offline"}')
+    def do_POST(self):
+        self.send_response(503)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"detail":"Jarvis offline"}')
 
-for var, fname in [
-    ("GOOGLE_TOKEN_JSON",          "google_token.json"),
-    ("GOOGLE_CLIENT_SECRET_JSON",  "google_client_secret.json"),
-]:
-    content = os.environ.get(var, "").strip()
-    if content:
-        (data / fname).write_text(content)
-        print(f"[startup] written {fname}")
-    else:
-        print(f"[startup] {var} not set — skipping")
-PYEOF
-
-uv run jarvis-web &
-exec uv run jarvis-cron
+print("[jarvis] Listening on :8080")
+HTTPServer(("0.0.0.0", 8080), Handler).serve_forever()
+EOF

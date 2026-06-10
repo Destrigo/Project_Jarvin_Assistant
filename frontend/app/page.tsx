@@ -1,18 +1,14 @@
-"use client";
-import { useState } from "react";
-import Sidebar from "@/components/Sidebar";
-import Chat from "@/components/Chat";
-
+// Jarvis offline. Per riattivare: git revert HEAD && git push
 export default function Home() {
-  const [injected, setInjected] = useState<string>("");
-
   return (
-    <div style={{ display: "flex", flex: 1, overflow: "hidden", height: "100%" }}>
-      <Sidebar onInject={(text) => setInjected(text)} />
-      <Chat
-        injectedMessage={injected}
-        onInjectedConsumed={() => setInjected("")}
-      />
+    <div style={{
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      height: "100%", gap: "12px", color: "#888",
+      fontFamily: "monospace",
+    }}>
+      <span style={{ fontSize: "2rem" }}>⚫</span>
+      <span style={{ fontSize: "1.1rem" }}>Jarvis offline</span>
     </div>
   );
 }
